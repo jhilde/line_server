@@ -23,7 +23,7 @@ def hit_website
 		#puts response.body
 		stop = Time.now
 		timings << stop - start
-		#sleep rand(1)
+		#sleep rand(10)
 	}
 
 	total = 0.0

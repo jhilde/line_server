@@ -1,6 +1,8 @@
 require 'sinatra'
 require 'thread_safe'
 
+$mutex = Mutex.new
+
 class CacheStrategy
 	def initialize(max_cache_size)
 	end	
@@ -29,7 +31,7 @@ class RUCacheStrategy < CacheStrategy
 	@cached_list #Array of cached indices ordered by retrieval from the data file
 	@max_cache_size #Maximum size (in bytes) of the cached values [exclusive of Array overhead]
 	@current_cache_size #Current size (in bytes) of the cached values [exclusive of Array overhead]
-	@mutex #Mutex to lock critical sections (writes to value and cached lists, current_cache_size)
+	#@mutex #Mutex to lock critical sections (writes to value and cached lists, current_cache_size)
 	@most #Boolean true for Most Recently Used strategy, false for Least Recently Used strategy
 
 	################################################################################
@@ -48,7 +50,7 @@ class RUCacheStrategy < CacheStrategy
 		@cached_list = ThreadSafe::Array.new
 		@max_cache_size = max_cache_size
 		@current_cache_size = 0
-		@mutex = Mutex.new
+		#$mutex = Mutex.new
 		@most = most
 	end
 
@@ -109,7 +111,7 @@ class RUCacheStrategy < CacheStrategy
 	
 	def []=(index,value)
 		evicted_size = 0
-		@mutex.synchronize {
+		$mutex.synchronize {
 			if value.bytesize <= @max_cache_size
 				if @current_cache_size + value.bytesize > @max_cache_size
 					while(evicted_size <= value.bytesize)
@@ -135,7 +137,7 @@ class RandomCacheStrategy < CacheStrategy
 	@max_cache_size
 	@current_cache_size
 	@random_number_generator
-	@mutex
+	#@mutex
 
 	def initialize(max_cache_size)
 		@value_list = ThreadSafe::Array.new
@@ -143,7 +145,7 @@ class RandomCacheStrategy < CacheStrategy
 		@current_cache_size = 0
 		@random_number_generator = Random.new
 		@cached_list = ThreadSafe::Array.new
-		@mutex = Mutex.new
+		#$mutex = Mutex.new
 	end
 
 	def evict_next
@@ -160,7 +162,7 @@ class RandomCacheStrategy < CacheStrategy
 		
 			@cached_list.delete_at(evict_cached_index)
 			@value_list[evict_value_index] = nil
-			puts "Evicting #{evict_value_index}"
+			puts "Evicting #{evict_value_index} to save #{evict_value_size}"
 			# Let's reset current_cache size in the add @current_cache_size = @current_cache_size - evict_value_size
 			return evict_value_size
 		else
@@ -175,19 +177,24 @@ class RandomCacheStrategy < CacheStrategy
 	def []=(index,value)
 		evicted_size = 0
 
-		@mutex.synchronize {
+		$mutex.synchronize {
 			#puts @current_cache_size
 			#puts @max_cache_size
 			if(@current_cache_size + value.bytesize > @max_cache_size && value.bytesize <= @max_cache_size)
 			#we'll need to do some evicting
-
+			puts "Need to evict current: #{@current_cache_size} space needed: #{value.bytesize}"
 			#To make it easier, let's just evict >= bytes as the 
 			current_evicted_size = 0
 
 			while(evicted_size < value.bytesize)
+				puts "Already evicted: #{evicted_size}"
+
 				current_evict_size = evict_next
+				puts "Now evicted: #{current_evict_size}"
+
 				if current_evict_size > 0
-					evicted_size = evicted_size + current_evicted_size
+					evicted_size = evicted_size + current_evict_size
+					puts "Total evicted: #{evicted_size}"
 				else
 					puts "Can't cache for some reason"
 					return

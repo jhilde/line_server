@@ -12,7 +12,7 @@ def hit_website
 
 	timings = Array.new
 	
-	1000.times {
+	100000.times {
 		http = Net::HTTP.new('localhost', 4567)
 		index = 0
 		while index == 0 || index > 1000

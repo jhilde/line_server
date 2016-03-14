@@ -180,13 +180,13 @@ class RandomCacheStrategy < CacheStrategy
 		$mutex.synchronize {
 			#puts @current_cache_size
 			#puts @max_cache_size
-			if(@current_cache_size + value.bytesize > @max_cache_size && value.bytesize <= @max_cache_size)
+			if(@current_cache_size + value.bytesize > @max_cache_size && value.bytesize < @max_cache_size)
 			#we'll need to do some evicting
 			puts "Need to evict current: #{@current_cache_size} space needed: #{value.bytesize}"
 			#To make it easier, let's just evict >= bytes as the 
 			current_evicted_size = 0
 
-			while(evicted_size < value.bytesize)
+			while(evicted_size <= value.bytesize)
 				puts "Already evicted: #{evicted_size}"
 
 				current_evict_size = evict_next
@@ -197,6 +197,8 @@ class RandomCacheStrategy < CacheStrategy
 					puts "Total evicted: #{evicted_size}"
 				else
 					puts "Can't cache for some reason"
+					exit
+					
 					return
 				end
 			end
@@ -205,7 +207,10 @@ class RandomCacheStrategy < CacheStrategy
 
 		
 			@value_list[index] = value
+			puts "Added line number #{index} to the cache"
+			puts "curr size: #{@current_cache_size} new_item_size: #{value.bytesize} evicted: #{evicted_size}"
 			@current_cache_size = @current_cache_size + value.bytesize - evicted_size
+			puts "new cache size: #{@current_cache_size}"
 			@cached_list.push(index)
 		}
 
